@@ -2,32 +2,32 @@ exports.handler = async (event) => {
   try {
     const { topic } = JSON.parse(event.body || "{}");
     
-    // ✅ Working model - Mistral 7B
-    const API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3";
-
+    // ✅ CORRECT ENDPOINT - Abhi working hai
+    const API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-large";
+    
+    // Important: Content-Type header MAT hatao, Hugging Face khud detect karega
     const response = await fetch(API_URL, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.HF_TOKEN}`,
-        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.HF_TOKEN}`,
       },
       body: JSON.stringify({
-        inputs: `[INST] Write structured notes on: ${topic} [/INST]`,
-        parameters: {
-          max_new_tokens: 1000,
-          temperature: 0.7,
-          return_full_text: false,
-        },
+        inputs: `Write structured notes on: ${topic}`,
+        options: {
+          wait_for_model: true,  // Model load hone ka wait karega
+          use_cache: false,
+        }
       }),
     });
 
     if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`API Error (${response.status}): ${error}`);
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 200)}`);
     }
 
+    // Hugging Face abhi bhi array return karta hai
     const data = await response.json();
-    const notes = data[0]?.generated_text || "No response generated";
+    const generatedText = Array.isArray(data) ? data[0]?.generated_text : data;
 
     return {
       statusCode: 200,
@@ -35,14 +35,21 @@ exports.handler = async (event) => {
         "Access-Control-Allow-Origin": "*",
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ notes }),
+      body: JSON.stringify({ 
+        notes: generatedText || "No notes generated",
+        model: "google/flan-t5-large"
+      }),
     };
+
   } catch (error) {
-    console.error("Error:", error);
+    console.error("Function error:", error);
     return {
       statusCode: 500,
       headers: { "Access-Control-Allow-Origin": "*" },
-      body: JSON.stringify({ error: error.message }),
+      body: JSON.stringify({ 
+        error: error.message,
+        tip: "Check HF_TOKEN in Netlify environment variables"
+      }),
     };
   }
 };
