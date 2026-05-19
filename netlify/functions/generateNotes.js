@@ -1,6 +1,14 @@
 exports.handler = async (event) => {
   try {
-    const { topic } = JSON.parse(event.body);
+    if (!event.body) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "No body received" }),
+      };
+    }
+
+    const body = JSON.parse(event.body);
+    const topic = body.topic;
 
     const response = await fetch(
       "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
@@ -11,13 +19,7 @@ exports.handler = async (event) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          inputs: `Generate structured study notes on: ${topic}
-Format:
-1. Introduction
-2. Key Concepts
-3. Advantages
-4. Disadvantages
-5. Conclusion`,
+          inputs: `Generate structured notes on: ${topic}`,
         }),
       }
     );
@@ -27,15 +29,14 @@ Format:
     return {
       statusCode: 200,
       body: JSON.stringify({
-        notes: data[0]?.generated_text || "No response",
+        notes: data?.[0]?.generated_text || "No response",
       }),
     };
+
   } catch (error) {
     return {
       statusCode: 500,
-      body: JSON.stringify({
-        error: error.message,
-      }),
+      body: JSON.stringify({ error: error.message }),
     };
   }
 };
