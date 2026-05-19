@@ -1,5 +1,18 @@
 // netlify/functions/generateNotes.js
 exports.handler = async (event) => {
+  // ✅ 1. Preflight (OPTIONS) request (CORS error se bachne ke liye)
+  if (event.httpMethod === "OPTIONS") {
+    return {
+      statusCode: 200,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        "Access-Control-Allow-Methods": "POST, OPTIONS"
+      },
+      body: "OK"
+    };
+  }
+
   try {
     const { topic } = JSON.parse(event.body || "{}");
     
@@ -11,32 +24,27 @@ exports.handler = async (event) => {
       };
     }
     
-    // ✅ PRO MODEL: Meta Llama 3 70B running on Groq
-    const MODEL = "llama3-70b-8192";
-    const API_URL = "https://api.groq.com/openai/v1/chat/completions";
+    // ✅ 2. USING HUGGING FACE FREE PRO MODEL (No new API key needed)
+    // Yeh Flan-T5 se bohot zyada smart hai aur notes proper format mein dega
+    const MODEL = "HuggingFaceH4/zephyr-7b-beta";
+    const API_URL = `https://api-inference.huggingface.co/models/${MODEL}`;
     
     console.log("📝 Topic:", topic);
     
     const response = await fetch(API_URL, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+        "Authorization": `Bearer ${process.env.HF_TOKEN}`, // Aapka purana free token
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          {
-            role: "system",
-            content: "You are an expert educational assistant. Write clear, structured, and professional notes."
-          },
-          {
-            role: "user",
-            content: `Write detailed and structured notes on: ${topic}`
-          }
-        ],
-        temperature: 0.5,
-        max_tokens: 500, // Aap isko badha bhi sakte ho
+        // Zephyr model ka proper prompt format
+        inputs: `<|system|>\nYou are an expert educational assistant. Write clear, structured, and professional notes using headings and bullet points.<|end|>\n<|user|>\nWrite detailed notes on: ${topic}<|end|>\n<|assistant|>\n`,
+        parameters: {
+          max_new_tokens: 500,
+          temperature: 0.5,
+          return_full_text: false // Aapka question repeat nahi karega
+        },
       }),
     });
 
@@ -51,8 +59,8 @@ exports.handler = async (event) => {
     const data = await response.json();
     console.log("✅ Response Received");
     
-    // Groq OpenAI-compatible format return karta hai
-    const notes = data.choices[0]?.message?.content || "No notes generated";
+    // Hugging face array format return karta hai
+    const notes = data[0]?.generated_text || data.generated_text || "No notes generated";
 
     return {
       statusCode: 200,
@@ -61,7 +69,7 @@ exports.handler = async (event) => {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({ 
-        notes: notes,
+        notes: notes.trim(),
         topic: topic,
         model: MODEL
       }),
@@ -74,7 +82,7 @@ exports.handler = async (event) => {
       headers: { "Access-Control-Allow-Origin": "*" },
       body: JSON.stringify({ 
         error: error.message,
-        tip: "Check Netlify function logs"
+        tip: "Check Netlify logs and ensure HF_TOKEN is valid."
       }),
     };
   }
