@@ -7,11 +7,10 @@ exports.handler = async (event) => {
       };
     }
 
-    const body = JSON.parse(event.body);
-    const topic = body.topic;
+    const { topic } = JSON.parse(event.body);
 
     const response = await fetch(
-      "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2",
+      "https://api-inference.huggingface.co/models/google/flan-t5-large",
       {
         method: "POST",
         headers: {
@@ -19,17 +18,22 @@ exports.handler = async (event) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          inputs: `Generate structured notes on: ${topic}`,
+          inputs: `Generate structured study notes on: ${topic}`,
         }),
       }
     );
 
-    const data = await response.json();
+    const data = await response.json().catch(async () => {
+      return await response.text();
+    });
 
     return {
       statusCode: 200,
       body: JSON.stringify({
-        notes: data?.[0]?.generated_text || "No response",
+        notes:
+          data?.[0]?.generated_text ||
+          data?.generated_text ||
+          data,
       }),
     };
 
