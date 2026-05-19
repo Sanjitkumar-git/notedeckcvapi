@@ -1,47 +1,35 @@
 exports.handler = async (event) => {
   try {
-    if (!event.body) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: "No body received" }),
-      };
-    }
+    const { topic } = JSON.parse(event.body || "{}");
 
-    const { topic } = JSON.parse(event.body);
+    const hfResponse = await fetch(
+      "https://api-inference.huggingface.co/models/microsoft/Phi-3-mini-4k-instruct",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.HF_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          inputs: `Generate structured notes on: ${topic}`,
+        }),
+      }
+    );
 
-   const hfResponse = await fetch(
-  "https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-beta",
-  {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.HF_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      inputs: `Generate structured study notes on: ${topic}`,
-    }),
-  }
-);
-    const rawText = await hfResponse.text();
-
-    let data;
-    try {
-      data = JSON.parse(rawText);
-    } catch (e) {
-      data = rawText;
-    }
+    const text = await hfResponse.text();
 
     return {
       statusCode: 200,
       body: JSON.stringify({
-        notes: data?.[0]?.generated_text || data,
+        notes: text,
       }),
     };
-
   } catch (error) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: error.message }),
+      body: JSON.stringify({
+        error: error.message,
+      }),
     };
   }
 };
