@@ -2,8 +2,8 @@ exports.handler = async (event) => {
   try {
     const { topic } = JSON.parse(event.body || "{}");
     
-    // ✅ Updated to the new router endpoint
-    const API_URL = "https://router.huggingface.co/hf-inference/models/google/flan-t5-large";
+    // ✅ Working model - Mistral 7B
+    const API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3";
 
     const response = await fetch(API_URL, {
       method: "POST",
@@ -12,31 +12,36 @@ exports.handler = async (event) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        inputs: `Write structured notes on: ${topic}`,
+        inputs: `[INST] Write structured notes on: ${topic} [/INST]`,
         parameters: {
-          max_new_tokens: 500,      // Limits response length
-          return_full_text: false,  // Prevents repeating the prompt in the output
+          max_new_tokens: 1000,
+          temperature: 0.7,
+          return_full_text: false,
         },
       }),
     });
 
-    // Error handling for non-2xx responses
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`API Error (${response.status}): ${errorText}`);
+      const error = await response.text();
+      throw new Error(`API Error (${response.status}): ${error}`);
     }
 
     const data = await response.json();
-    const generatedText = data[0]?.generated_text || "";
+    const notes = data[0]?.generated_text || "No response generated";
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ notes: generatedText }),
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ notes }),
     };
   } catch (error) {
-    console.error("Function error:", error);
+    console.error("Error:", error);
     return {
       statusCode: 500,
+      headers: { "Access-Control-Allow-Origin": "*" },
       body: JSON.stringify({ error: error.message }),
     };
   }
