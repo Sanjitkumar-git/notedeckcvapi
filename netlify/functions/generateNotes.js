@@ -11,9 +11,9 @@ exports.handler = async (event) => {
       };
     }
     
-    // ✅ WORKING MODEL - Flan-T5 Large (Simple aur reliable)
     const MODEL = "google/flan-t5-large";
-    const API_URL = `https://router.huggingface.co/hf-inference/models/${MODEL}`;
+    // Using the direct standard Inference API URL
+    const API_URL = `https://api-inference.huggingface.co/models/${MODEL}`;
     
     console.log("📝 Topic:", topic);
     
@@ -28,6 +28,7 @@ exports.handler = async (event) => {
         parameters: {
           max_new_tokens: 300,
           temperature: 0.5,
+          return_full_text: false // Don't repeat the prompt in the output
         },
       }),
     });
@@ -36,15 +37,15 @@ exports.handler = async (event) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("API Error:", errorText);
-      throw new Error(`API Error (${response.status})`);
+      console.error("API Error Detail:", errorText); // This will print exactly why HF said 400
+      throw new Error(`API Error (${response.status}): ${errorText}`);
     }
 
     const data = await response.json();
     console.log("✅ Response:", JSON.stringify(data).substring(0, 100));
     
-    // Flan-T5 response format
-    const notes = data.generated_text || data[0]?.generated_text || "No notes generated";
+    // Handling array response which HF standard inference returns
+    const notes = data[0]?.generated_text || data.generated_text || "No notes generated";
 
     return {
       statusCode: 200,
