@@ -1,6 +1,6 @@
 // netlify/functions/generateNotes.js
 exports.handler = async (event) => {
-  // ✅ 1. Preflight (OPTIONS) request (CORS error se bachne ke liye)
+  // 1. Handle CORS Preflight
   if (event.httpMethod === "OPTIONS") {
     return {
       statusCode: 200,
@@ -24,27 +24,32 @@ exports.handler = async (event) => {
       };
     }
     
-    // ✅ 2. USING HUGGING FACE FREE PRO MODEL (No new API key needed)
-    // Yeh Flan-T5 se bohot zyada smart hai aur notes proper format mein dega
+    // ✅ NEW URL FORMAT: OpenAI-compatible endpoint on Hugging Face
     const MODEL = "HuggingFaceH4/zephyr-7b-beta";
-    const API_URL = `https://api-inference.huggingface.co/models/${MODEL}`;
+    const API_URL = `https://api-inference.huggingface.co/models/${MODEL}/v1/chat/completions`;
     
     console.log("📝 Topic:", topic);
     
     const response = await fetch(API_URL, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${process.env.HF_TOKEN}`, // Aapka purana free token
+        "Authorization": `Bearer ${process.env.HF_TOKEN}`, // Aapka free READ token hi chalega
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        // Zephyr model ka proper prompt format
-        inputs: `<|system|>\nYou are an expert educational assistant. Write clear, structured, and professional notes using headings and bullet points.<|end|>\n<|user|>\nWrite detailed notes on: ${topic}<|end|>\n<|assistant|>\n`,
-        parameters: {
-          max_new_tokens: 500,
-          temperature: 0.5,
-          return_full_text: false // Aapka question repeat nahi karega
-        },
+        model: MODEL,
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert educational assistant. Write clear, structured, and professional notes using markdown."
+          },
+          {
+            role: "user",
+            content: `Write detailed notes on: ${topic}`
+          }
+        ],
+        max_tokens: 500,
+        temperature: 0.5
       }),
     });
 
@@ -59,8 +64,8 @@ exports.handler = async (event) => {
     const data = await response.json();
     console.log("✅ Response Received");
     
-    // Hugging face array format return karta hai
-    const notes = data[0]?.generated_text || data.generated_text || "No notes generated";
+    // Extracting notes from the new OpenAI-style JSON structure
+    const notes = data.choices[0]?.message?.content || "No notes generated";
 
     return {
       statusCode: 200,
@@ -69,7 +74,7 @@ exports.handler = async (event) => {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({ 
-        notes: notes.trim(),
+        notes: notes,
         topic: topic,
         model: MODEL
       }),
@@ -82,7 +87,7 @@ exports.handler = async (event) => {
       headers: { "Access-Control-Allow-Origin": "*" },
       body: JSON.stringify({ 
         error: error.message,
-        tip: "Check Netlify logs and ensure HF_TOKEN is valid."
+        tip: "Check Netlify logs and HF_TOKEN."
       }),
     };
   }
