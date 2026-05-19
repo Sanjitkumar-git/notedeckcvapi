@@ -11,12 +11,11 @@ exports.handler = async (event) => {
       };
     }
     
-    // ✅ WORKING MODEL - Microsoft Phi-2
-    const MODEL = "microsoft/phi-2";
+    // ✅ WORKING MODEL - Flan-T5 Large (Simple aur reliable)
+    const MODEL = "google/flan-t5-large";
     const API_URL = `https://router.huggingface.co/hf-inference/models/${MODEL}`;
     
     console.log("📝 Topic:", topic);
-    console.log("🤖 Model:", MODEL);
     
     const response = await fetch(API_URL, {
       method: "POST",
@@ -25,11 +24,10 @@ exports.handler = async (event) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        inputs: `Write detailed notes on: ${topic}\n\nNotes:`,
+        inputs: `Write structured notes on ${topic}:`,
         parameters: {
-          max_new_tokens: 500,
-          temperature: 0.7,
-          return_full_text: false,
+          max_new_tokens: 300,
+          temperature: 0.5,
         },
       }),
     });
@@ -43,9 +41,9 @@ exports.handler = async (event) => {
     }
 
     const data = await response.json();
-    console.log("✅ Response received");
+    console.log("✅ Response:", JSON.stringify(data).substring(0, 100));
     
-    // Phi-2 response format
+    // Flan-T5 response format
     const notes = data.generated_text || data[0]?.generated_text || "No notes generated";
 
     return {
