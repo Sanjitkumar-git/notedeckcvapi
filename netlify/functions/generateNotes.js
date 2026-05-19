@@ -9,20 +9,19 @@ exports.handler = async (event) => {
 
     const { topic } = JSON.parse(event.body);
 
-    const hfResponse = await fetch(
-      "https://api-inference.huggingface.co/models/google/flan-t5-large",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.HF_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          inputs: `Generate structured notes on: ${topic}`,
-        }),
-      }
-    );
-
+   const hfResponse = await fetch(
+  "https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-beta",
+  {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.HF_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      inputs: `Generate structured study notes on: ${topic}`,
+    }),
+  }
+);
     const rawText = await hfResponse.text();
 
     let data;
