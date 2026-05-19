@@ -11,13 +11,12 @@ exports.handler = async (event) => {
       };
     }
     
-    // ✅ NAYA WORKING ENDPOINT - Router endpoint
-    const MODEL = "Qwen/Qwen2-1.5B-Instruct";
+    // ✅ WORKING MODEL - Microsoft Phi-2
+    const MODEL = "microsoft/phi-2";
     const API_URL = `https://router.huggingface.co/hf-inference/models/${MODEL}`;
     
-    console.log("📝 Generating notes for:", topic);
-    console.log("🤖 Using model:", MODEL);
-    console.log("🔗 API URL:", API_URL);
+    console.log("📝 Topic:", topic);
+    console.log("🤖 Model:", MODEL);
     
     const response = await fetch(API_URL, {
       method: "POST",
@@ -26,7 +25,7 @@ exports.handler = async (event) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        inputs: `Write structured notes on: ${topic}`,
+        inputs: `Write detailed notes on: ${topic}\n\nNotes:`,
         parameters: {
           max_new_tokens: 500,
           temperature: 0.7,
@@ -35,26 +34,19 @@ exports.handler = async (event) => {
       }),
     });
 
-    console.log("📡 Response status:", response.status);
+    console.log("📡 Status:", response.status);
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error("API Error:", errorText);
-      throw new Error(`Hugging Face API Error (${response.status}): ${errorText.substring(0, 200)}`);
+      throw new Error(`API Error (${response.status})`);
     }
 
     const data = await response.json();
-    console.log("📦 Response data:", JSON.stringify(data).substring(0, 200));
+    console.log("✅ Response received");
     
-    // Handle different response formats
-    let notes = "";
-    if (data.generated_text) {
-      notes = data.generated_text;
-    } else if (data[0]?.generated_text) {
-      notes = data[0].generated_text;
-    } else {
-      notes = JSON.stringify(data);
-    }
+    // Phi-2 response format
+    const notes = data.generated_text || data[0]?.generated_text || "No notes generated";
 
     return {
       statusCode: 200,
@@ -70,13 +62,13 @@ exports.handler = async (event) => {
     };
 
   } catch (error) {
-    console.error("❌ Function error:", error);
+    console.error("❌ Error:", error);
     return {
       statusCode: 500,
       headers: { "Access-Control-Allow-Origin": "*" },
       body: JSON.stringify({ 
         error: error.message,
-        tip: "Check Netlify function logs for more details"
+        tip: "Check Netlify function logs"
       }),
     };
   }
