@@ -2,8 +2,8 @@ exports.handler = async (event) => {
   try {
     const { topic } = JSON.parse(event.body || "{}");
 
-    const hfResponse = await fetch(
-      "https://api-inference.huggingface.co/models/microsoft/Phi-3-mini-4k-instruct",
+    const response = await fetch(
+      "https://api-inference.huggingface.co/models/google/flan-t5-large",
       {
         method: "POST",
         headers: {
@@ -11,12 +11,12 @@ exports.handler = async (event) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          inputs: `Generate structured notes on: ${topic}`,
+          inputs: `Write structured notes on: ${topic}`,
         }),
       }
     );
 
-    const text = await hfResponse.text();
+    const text = await response.text();
 
     return {
       statusCode: 200,
@@ -24,6 +24,7 @@ exports.handler = async (event) => {
         notes: text,
       }),
     };
+
   } catch (error) {
     return {
       statusCode: 500,
